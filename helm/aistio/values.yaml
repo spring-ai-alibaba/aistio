@@ -1,0 +1,94 @@
+replicaCount: 1
+
+image:
+  repository: registry.cn-hangzhou.aliyuncs.com/aistio/aistio
+  tag: "0.2.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  httpPort: 8080
+  grpcPort: 15010
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+leaderElection:
+  enabled: true
+
+serviceAccount:
+  create: true
+  name: aistio-controller
+
+rbac:
+  create: true
+
+# NOTE: CRDs live in the chart's crds/ directory and are installed automatically
+# by Helm on first install (`helm install`). Per Helm's design, CRDs are NOT
+# upgraded or deleted on `helm upgrade` / `helm uninstall`; apply CRD changes
+# explicitly with `kubectl apply -f crds/` (or `kubectl apply -k config/crd`).
+
+metrics:
+  enabled: true
+  port: 8081
+  # Create a Prometheus Operator ServiceMonitor for scraping.
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+  # Deploy a Grafana dashboard ConfigMap (requires the grafana_dashboard sidecar).
+  grafanaDashboard:
+    enabled: false
+  # Deploy PrometheusRule alerts (requires Prometheus Operator CRDs).
+  prometheusRule:
+    enabled: false
+
+healthCheck:
+  port: 8082
+
+# Experimental features: distributed AgentTeam orchestration and sandbox
+# provisioning. Off by default. NOTE: the ASDP gRPC server and config hot-reload
+# delivery are GA and enabled independently (see image args --enable-asdp), so
+# turning this off does NOT disable config push to the data plane.
+experimental:
+  enabled: false
+  grpcTLS:
+    enabled: false
+    certSecret: ""
+    caSecret: ""
+
+# Optional bearer-token auth for the REST API. When set, the token is stored in
+# a Secret and required on all /api/v1 requests.
+api:
+  authToken: ""
+
+# Admission webhooks (validation for all CRDs + Agent defaulting). Enabled by
+# default for GA. By default the chart generates a self-signed serving cert and
+# injects the CA bundle automatically, so no external dependency is required.
+# For production, prefer cert-manager (certManager.enabled=true) so the cert is
+# rotated and not regenerated on every `helm upgrade`.
+webhook:
+  enabled: true
+  port: 9443
+  certSecret: aistio-webhook-cert
+  # Explicit base64 CA bundle override. Leave empty to use the auto-generated
+  # self-signed CA, or cert-manager's ca-injection annotation when enabled.
+  caBundle: ""
+  certManager:
+    enabled: false
+    issuerRef: ""
+
+tracing:
+  endpoint: ""
+  sampling: 1.0
+
+networkPolicy:
+  enabled: false
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

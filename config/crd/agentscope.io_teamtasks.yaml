@@ -1,0 +1,92 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.21.0
+  name: teamtasks.agentscope.io
+spec:
+  group: agentscope.io
+  names:
+    kind: TeamTask
+    listKind: TeamTaskList
+    plural: teamtasks
+    shortNames:
+    - tt
+    singular: teamtask
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.teamRef
+      name: Team
+      type: string
+    - jsonPath: .status.state
+      name: State
+      type: string
+    - jsonPath: .status.owner
+      name: Owner
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: TeamTask is a task in a team's distributed task list.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: TeamTaskSpec defines the desired state of a TeamTask.
+            properties:
+              blockedBy:
+                items:
+                  type: string
+                type: array
+              description:
+                type: string
+              subject:
+                type: string
+              teamRef:
+                type: string
+            required:
+            - subject
+            - teamRef
+            type: object
+          status:
+            description: TeamTaskStatus defines the observed state of a TeamTask.
+            properties:
+              completedAt:
+                type: string
+              owner:
+                type: string
+              result:
+                type: string
+              state:
+                description: TeamTaskState is the status of a team task.
+                enum:
+                - pending
+                - in_progress
+                - completed
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

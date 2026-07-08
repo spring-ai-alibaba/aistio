@@ -1,0 +1,190 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.21.0
+  name: agentsessions.agentscope.io
+spec:
+  group: agentscope.io
+  names:
+    kind: AgentSession
+    listKind: AgentSessionList
+    plural: agentsessions
+    shortNames:
+    - as
+    singular: agentsession
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.agentRef.name
+      name: Agent
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.messageCount
+      name: Messages
+      type: integer
+    - jsonPath: .status.instanceRef
+      name: Instance
+      priority: 1
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: AgentSession represents a session on a managed agent.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AgentSessionSpec defines the desired state of AgentSession.
+            properties:
+              agentRef:
+                description: ObjectReference refers to a Kubernetes object.
+                properties:
+                  kind:
+                    type: string
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                type: object
+              commands:
+                description: Commands for control plane to execute on this session.
+                properties:
+                  compress:
+                    description: Set to true to trigger context compression.
+                    type: boolean
+                  terminate:
+                    description: Set to true to trigger session termination.
+                    type: boolean
+                type: object
+            required:
+            - agentRef
+            type: object
+          status:
+            description: AgentSessionStatus defines the observed state of AgentSession.
+            properties:
+              conditions:
+                items:
+                  description: Condition represents a status condition.
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      description: ConditionType defines the type of condition.
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              instanceIP:
+                type: string
+              instanceRef:
+                type: string
+              lastActiveAt:
+                type: string
+              messageCount:
+                format: int32
+                type: integer
+              phase:
+                description: SessionPhase represents the lifecycle phase of a session.
+                enum:
+                - Active
+                - Idle
+                - Compressing
+                - Terminated
+                type: string
+              startedAt:
+                type: string
+              state:
+                description: SessionState holds the detailed session state snapshot.
+                properties:
+                  contextPressure:
+                    description: ContextPressure tracks context window usage.
+                    properties:
+                      maxTokens:
+                        format: int64
+                        type: integer
+                      ratio:
+                        description: Ratio is usedTokens/maxTokens serialized as string
+                          (e.g. "0.56").
+                        type: string
+                      usedTokens:
+                        format: int64
+                        type: integer
+                    type: object
+                  currentIter:
+                    format: int32
+                    type: integer
+                  summary:
+                    type: string
+                  tasks:
+                    items:
+                      description: TaskState represents a task within a session.
+                      properties:
+                        id:
+                          type: string
+                        state:
+                          enum:
+                          - pending
+                          - in_progress
+                          - completed
+                          type: string
+                        subject:
+                          type: string
+                      required:
+                      - id
+                      - state
+                      - subject
+                      type: object
+                    type: array
+                type: object
+              tokenUsage:
+                description: TokenUsage tracks token consumption.
+                properties:
+                  completionTokens:
+                    format: int64
+                    type: integer
+                  promptTokens:
+                    format: int64
+                    type: integer
+                  totalTokens:
+                    format: int64
+                    type: integer
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

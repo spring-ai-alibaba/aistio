@@ -1,0 +1,146 @@
+syntax = "proto3";
+
+package agentscope.protocol.v1;
+
+option go_package = "github.com/agentscope/agentscope-go/control-plane/internal/asdp";
+
+// AgentDataPlaneService is the ASDP gRPC service.
+// Single bidirectional stream multiplexing all message types (analogous to xDS ADS).
+service AgentDataPlaneService {
+  rpc Connect(stream Upstream) returns (stream Downstream);
+}
+
+// ConfigType identifies the type of configuration resource (analogous to xDS type_url).
+enum ConfigType {
+  CONFIG_TYPE_UNSPECIFIED = 0;
+  CONFIG_TYPE_AGENT       = 1;
+  CONFIG_TYPE_TOOL        = 2;
+  CONFIG_TYPE_SKILL       = 3;
+  CONFIG_TYPE_OVERRIDE    = 4;
+  CONFIG_TYPE_MODEL       = 5;
+}
+
+// ═══════════ Data Plane → Control Plane (Upstream) ═══════════
+
+message Upstream {
+  UpstreamMeta meta = 1;
+  oneof payload {
+    ConnectRequest   connect        = 10;
+    ConfigAck        config_ack     = 11;
+    SessionReport    session_report = 12;
+    TeamEventReport  team_event     = 13;
+    Heartbeat        heartbeat      = 14;
+  }
+}
+
+message UpstreamMeta {
+  string agent_name  = 1;
+  string instance_id = 2;
+  string namespace   = 3;
+  int64  timestamp   = 4;
+}
+
+// Handshake (sent on connection establish, analogous to xDS initial DiscoveryRequest)
+message ConnectRequest {
+  string runtime            = 1;
+  string sdk_version        = 2;
+  repeated string capabilities = 3;
+  string session_affinity   = 4;
+}
+
+// Config acknowledgement (analogous to xDS ACK/NACK)
+message ConfigAck {
+  ConfigType config_type  = 1;
+  string version          = 2;
+  string nonce            = 3;
+  bool   accepted         = 4;
+  string reject_reason    = 5;
+}
+
+// Session state report (periodic batch, e.g. every 10s)
+message SessionReport {
+  repeated SessionSnapshot sessions = 1;
+}
+
+message SessionSnapshot {
+  string session_id       = 1;
+  string phase            = 2;
+  int32  message_count    = 3;
+  int64  prompt_tokens    = 4;
+  int64  completion_tokens = 5;
+  double context_pressure = 6;
+  TaskSummary task_summary = 7;
+  string team_id          = 8;
+  string team_role        = 9;
+}
+
+message TaskSummary {
+  int32 total       = 1;
+  int32 pending     = 2;
+  int32 in_progress = 3;
+  int32 completed   = 4;
+}
+
+// Team event report
+message TeamEventReport {
+  string team_id     = 1;
+  string event_type  = 2;
+  string member_name = 3;
+  string task_id     = 4;
+  bytes  detail      = 5;
+}
+
+// Heartbeat (bidirectional keepalive)
+message Heartbeat {
+  int64 timestamp = 1;
+}
+
+// Instance health reported by data plane
+message InstanceHealth {
+  bool   healthy     = 1;
+  string reason      = 2;
+  int32  active_sessions = 3;
+  double cpu_usage    = 4;
+  double memory_usage = 5;
+}
+
+// ═══════════ Control Plane → Data Plane (Downstream) ═══════════
+
+message Downstream {
+  oneof payload {
+    ConnectResponse  connect_ack = 10;
+    ConfigPush       config_push = 11;
+    SessionCommand   session_cmd = 12;
+    TeamEvent        team_event  = 13;
+    Heartbeat        heartbeat   = 14;
+  }
+}
+
+message ConnectResponse {
+  bool   accepted              = 1;
+  string reject_reason         = 2;
+  string control_plane_version = 3;
+}
+
+// Config push (analogous to xDS DiscoveryResponse)
+message ConfigPush {
+  ConfigType config_type = 1;
+  string version         = 2;
+  bytes  resources       = 3;
+  string nonce           = 4;
+}
+
+message SessionCommand {
+  string session_id = 1;
+  string command    = 2;
+  bytes  params     = 3;
+}
+
+message TeamEvent {
+  string team_id     = 1;
+  string event_type  = 2;
+  string member_name = 3;
+  string task_id     = 4;
+  bytes  payload     = 5;
+  int64  timestamp   = 6;
+}
