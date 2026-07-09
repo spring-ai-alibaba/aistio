@@ -202,8 +202,8 @@ func (s *Server) RegisterConnection(conn *Connection) {
 // UnregisterConnectionIfMatch removes the connection for the given instance only
 // if it is still the one currently registered. This guards against a stale stream
 // teardown (e.g. from a previous incarnation of the same instanceID after a
-// reconnect) tearing down the fresh connection that replaced it. conn must be the
-// caller's own *Connection pointer; the entry is removed only when it points to
+	// reconnect) tearing down the fresh connection that replaced it. conn must be the
+	// *Connection pointer you expect to be currently registered; the entry is removed only when it points to
 // the same object. Returns true if the connection was removed.
 func (s *Server) UnregisterConnectionIfMatch(namespace, instanceID string, conn *Connection) bool {
 	s.mu.Lock()
