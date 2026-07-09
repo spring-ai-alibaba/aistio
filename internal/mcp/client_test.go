@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -101,4 +102,53 @@ func TestDiscoverTools_SSE(t *testing.T) {
 // decodeJSON is a tiny helper to read a JSON body in tests.
 func decodeJSON(r *http.Request, v interface{}) error {
 	return json.NewDecoder(r.Body).Decode(v)
+}
+
+// TestDiscoverTools_RefusesRedirect verifies the client does not follow
+// redirects. A malicious MCP server could otherwise redirect the control plane
+// to an internal/metadata endpoint (SSRF), and — because Go only strips
+// Authorization/Cookie on cross-host redirects, not custom headers — leak any
+// caller-configured auth header (e.g. X-API-Key) to the redirect target.
+func TestDiscoverTools_RefusesRedirect(t *testing.T) {
+	// "attacker" server that the redirect would point at; it must never be hit.
+	var attackerHit atomic.Bool
+	attacker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attackerHit.Store(true)
+		if h := r.Header.Get("X-API-Key"); h != "" {
+			t.Errorf("auth header leaked to redirect target: X-API-Key=%q", h)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer attacker.Close()
+
+	// "malicious" MCP server that responds to initialize with a redirect.
+	malicious := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, attacker.URL+"/leak", http.StatusFound)
+	}))
+	defer malicious.Close()
+
+	_, err := DiscoverTools(context.Background(), "Remote", malicious.URL,
+		map[string]string{"X-API-Key": "super-secret"}, 2*time.Second)
+	if err == nil {
+		t.Fatal("expected DiscoverTools to fail on redirect, got nil error")
+	}
+	if attackerHit.Load() {
+		t.Fatal("client followed the redirect and hit the attacker endpoint (SSRF)")
+	}
+}
+
+// TestDiscoverTools_RefusesRedirectToMetadata verifies a redirect to a
+// link-local metadata-style path is not followed either.
+func TestDiscoverTools_RefusesRedirectToMetadata(t *testing.T) {
+	malicious := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Simulate a redirect to a cloud metadata endpoint.
+		w.Header().Set("Location", "http://169.254.169.254/latest/meta-data/")
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer malicious.Close()
+
+	_, err := DiscoverTools(context.Background(), "Remote", malicious.URL, nil, 2*time.Second)
+	if err == nil {
+		t.Fatal("expected DiscoverTools to fail on redirect to metadata endpoint, got nil error")
+	}
 }
