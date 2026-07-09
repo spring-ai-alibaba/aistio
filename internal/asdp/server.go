@@ -199,20 +199,30 @@ func (s *Server) RegisterConnection(conn *Connection) {
 	)
 }
 
-// UnregisterConnection removes a data plane connection.
-func (s *Server) UnregisterConnection(namespace, instanceID string) {
+// UnregisterConnectionIfMatch removes the connection for the given instance only
+// if it is still the one currently registered. This guards against a stale stream
+// teardown (e.g. from a previous incarnation of the same instanceID after a
+// reconnect) tearing down the fresh connection that replaced it. conn must be the
+// caller's own *Connection pointer; the entry is removed only when it points to
+// the same object. Returns true if the connection was removed.
+func (s *Server) UnregisterConnectionIfMatch(namespace, instanceID string, conn *Connection) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	key := GetInstanceKey(namespace, instanceID)
-	if conn, ok := s.connections[key]; ok {
-		conn.Close()
-		delete(s.connections, key)
-		metrics.RecordGRPCConnection(-1)
+	current, ok := s.connections[key]
+	if !ok || current != conn {
+		// Either nothing is registered, or a newer connection already replaced
+		// this one — leave the current registration intact.
+		return false
 	}
+	current.Close()
+	delete(s.connections, key)
+	metrics.RecordGRPCConnection(-1)
 
 	logger := log.Log.WithName("asdp")
 	logger.Info("data plane disconnected", "instance", instanceID, "namespace", namespace)
+	return true
 }
 
 // GetConnection retrieves a connection by instance key.
