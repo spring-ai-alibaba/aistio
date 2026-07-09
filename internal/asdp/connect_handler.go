@@ -50,7 +50,8 @@ func (h *ConnectHandler) HandleConnect(ctx context.Context, meta *UpstreamMeta, 
 	}
 
 	// Proactively tear down a stale connection for the same instance so its
-	// writer goroutine and stream are released before the new one registers.
+	// writer goroutine is stopped and it is unregistered before the new one
+	// registers.
 	// Use the identity-checked unregister: if another (newer) connection has
 	// already taken the slot, leave it alone.
 	if existing, ok := h.server.GetConnection(meta.Namespace, meta.InstanceId); ok {
