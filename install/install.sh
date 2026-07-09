@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AgentScope Control Plane installer (Helm-based).
+# Aistio control plane installer (Helm-based).
 #
 # Usage:
 #   ./install/install.sh [-n namespace] [-p profile] [-r release] [extra helm args...]
@@ -11,10 +11,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CHART_DIR="$(cd "${SCRIPT_DIR}/../helm/agentscope-controlplane" && pwd)"
+CHART_DIR="$(cd "${SCRIPT_DIR}/../helm/aistio" && pwd)"
 
-NAMESPACE="agentscope-system"
-RELEASE="agentscope"
+NAMESPACE="aistio-system"
+RELEASE="aistio"
 PROFILE=""
 
 while getopts ":n:p:r:h" opt; do

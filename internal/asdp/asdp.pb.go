@@ -1373,7 +1373,7 @@ const file_internal_asdp_asdp_proto_rawDesc = "" +
 	"\x14CONFIG_TYPE_OVERRIDE\x10\x04\x12\x15\n" +
 	"\x11CONFIG_TYPE_MODEL\x10\x052l\n" +
 	"\x15AgentDataPlaneService\x12S\n" +
-	"\aConnect\x12 .agentscope.protocol.v1.Upstream\x1a\".agentscope.protocol.v1.Downstream(\x010\x01BAZ?github.com/spring-ai-alibaba/aistio/internal/asdpb\x06proto3"
+	"\aConnect\x12 .agentscope.protocol.v1.Upstream\x1a\".agentscope.protocol.v1.Downstream(\x010\x01B3Z1github.com/spring-ai-alibaba/aistio/internal/asdpb\x06proto3"
 
 var (
 	file_internal_asdp_asdp_proto_rawDescOnce sync.Once

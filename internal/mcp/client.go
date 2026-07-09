@@ -94,9 +94,22 @@ func DiscoverTools(ctx context.Context, serverType, url string, headers map[stri
 	}
 
 	cl := &client{
-		httpClient: &http.Client{Timeout: timeout},
-		url:        url,
-		headers:    headers,
+		httpClient: &http.Client{
+			Timeout: timeout,
+			// The MCP Streamable HTTP transport targets a single fixed endpoint.
+			// Following redirects is unnecessary for legitimate servers and is an
+			// SSRF vector: a malicious or compromised MCP server could redirect the
+			// control plane to an internal/metadata endpoint
+			// (e.g. http://169.254.169.254/). Go strips Authorization and Cookie on
+			// cross-host redirects but forwards custom headers (e.g. X-API-Key),
+			// which is exactly how MCP auth headers are configured — so a redirect
+			// could also leak credentials. Refuse all redirects.
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
+		url:     url,
+		headers: headers,
 	}
 
 	if err := cl.initialize(ctx); err != nil {

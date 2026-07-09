@@ -33,7 +33,14 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: SandboxClaim represents a sandbox resource request from an agent.
+        description: |-
+          SandboxClaim represents a request for a sandboxed execution environment.
+
+          EXPERIMENTAL: Sandbox provisioning is not yet implemented. Creating a
+          SandboxClaim will be accepted and set to Pending phase, but will not
+          provision an actual sandbox. This feature requires the agent-sandbox
+          project (agent-sandbox.sigs.k8s.io) which is under active development.
+          See the project roadmap for planned integration timeline.
         properties:
           apiVersion:
             description: |-

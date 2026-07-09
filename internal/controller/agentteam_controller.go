@@ -34,6 +34,10 @@ type AgentTeamReconciler struct {
 // +kubebuilder:rbac:groups=agentscope.io,resources=agentteams/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=agentscope.io,resources=agentteams/finalizers,verbs=update
 // +kubebuilder:rbac:groups=agentscope.io,resources=agentsessions,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=agentscope.io,resources=teammessages,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=agentscope.io,resources=teammessages/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=agentscope.io,resources=teamtasks,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=agentscope.io,resources=teamtasks/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 func (r *AgentTeamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

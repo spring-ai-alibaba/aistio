@@ -469,3 +469,81 @@ func TestDisconnectCleansUp(t *testing.T) {
 	}
 	t.Errorf("expected 0 connections after disconnect, got %d", srv.ConnectionCount())
 }
+
+// TestReconnectDoesNotEvictFreshConnection reproduces the race where a stale
+// stream's teardown would evict a newer connection that reused the same
+// instanceID. Two streams handshake with the same instanceID; closing the first
+// (stale) stream must not tear down the second (current) connection.
+func TestReconnectDoesNotEvictFreshConnection(t *testing.T) {
+	srv, client, cleanup := startTestServer(t, nil)
+	defer cleanup()
+
+	meta := validMeta()
+
+	// First connection for inst-001.
+	stream1, ack := doHandshake(t, client, meta, validConnectReq())
+	if !ack.Accepted {
+		t.Fatalf("first handshake rejected: %s", ack.RejectReason)
+	}
+	waitForConnectionCount(t, srv, 1)
+
+	// Second connection reusing the same instanceID. HandleConnect evicts the
+	// stale one and registers this fresh connection.
+	stream2, ack2 := doHandshake(t, client, meta, validConnectReq())
+	if !ack2.Accepted {
+		t.Fatalf("second handshake rejected: %s", ack2.RejectReason)
+	}
+	waitForConnectionCount(t, srv, 1)
+
+	// Capture the current connection pointer so we can assert it survives.
+	fresh, ok := srv.GetConnection(meta.Namespace, meta.InstanceId)
+	if !ok {
+		t.Fatal("expected the fresh connection to be registered")
+	}
+
+	// Close the stale stream. Before the fix, its HandleDisconnect defer ran
+	// UnregisterConnection(namespace, instanceID) unconditionally and evicted
+	// the fresh connection; with the identity check it must be a no-op.
+	if err := stream1.CloseSend(); err != nil {
+		t.Fatalf("CloseSend stream1 failed: %v", err)
+	}
+
+	// Give the stale stream's teardown defer time to run.
+	deadline := time.Now().Add(1 * time.Second)
+	for time.Now().Before(deadline) {
+		current, ok := srv.GetConnection(meta.Namespace, meta.InstanceId)
+		if !ok || current != fresh {
+			t.Fatalf("fresh connection was evicted by stale stream teardown; ok=%v same=%v", ok, ok && current == fresh)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	// The fresh connection must still be registered and be the same object.
+	if srv.ConnectionCount() != 1 {
+		t.Fatalf("expected 1 connection after stale stream close, got %d", srv.ConnectionCount())
+	}
+	current, ok := srv.GetConnection(meta.Namespace, meta.InstanceId)
+	if !ok || current != fresh {
+		t.Fatalf("fresh connection did not survive; ok=%v same=%v", ok, ok && current == fresh)
+	}
+
+	// Closing the fresh stream now should bring the count back to 0.
+	if err := stream2.CloseSend(); err != nil {
+		t.Fatalf("CloseSend stream2 failed: %v", err)
+	}
+	waitForConnectionCount(t, srv, 0)
+}
+
+// waitForConnectionCount polls until the server reports the expected number of
+// connections or fails the test after a timeout.
+func waitForConnectionCount(t *testing.T, srv *asdp.Server, want int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if srv.ConnectionCount() == want {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("expected %d connections, got %d", want, srv.ConnectionCount())
+}
