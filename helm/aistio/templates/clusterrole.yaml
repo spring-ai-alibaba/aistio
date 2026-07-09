@@ -53,8 +53,6 @@ rules:
   - mcpservers
   - modelconfigs
   - sandboxclaims
-  - teammessages
-  - teamtasks
   verbs:
   - create
   - delete
@@ -79,8 +77,6 @@ rules:
   - mcpservers/status
   - modelconfigs/status
   - sandboxclaims/status
-  - teammessages/status
-  - teamtasks/status
   verbs:
   - get
   - patch
