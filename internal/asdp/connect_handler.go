@@ -50,13 +50,16 @@ func (h *ConnectHandler) HandleConnect(ctx context.Context, meta *UpstreamMeta, 
 	}
 
 	// Proactively tear down a stale connection for the same instance so its
-	// writer goroutine and stream are released before the new one registers.
+	// writer goroutine is stopped and it is unregistered before the new one
+	// registers.
+	// Use the identity-checked unregister: if another (newer) connection has
+	// already taken the slot, leave it alone.
 	if existing, ok := h.server.GetConnection(meta.Namespace, meta.InstanceId); ok {
 		logger.Info("reconnecting existing instance",
 			"agent", existing.AgentName,
 			"instance", meta.InstanceId,
 		)
-		h.server.UnregisterConnection(meta.Namespace, meta.InstanceId)
+		h.server.UnregisterConnectionIfMatch(meta.Namespace, meta.InstanceId, existing)
 	}
 
 	logger.Info("handshake accepted",
@@ -141,10 +144,13 @@ func identityMatchesAgent(cert *x509.Certificate, namespace, agentName string) b
 }
 
 // HandleDisconnect handles a data plane instance disconnection (stream closed).
-func (h *ConnectHandler) HandleDisconnect(namespace, instanceID string) {
+// conn is the caller's own connection; the registration is removed only if it
+// still points to conn, so a stale stream teardown cannot evict a newer
+// connection that reused the same instanceID.
+func (h *ConnectHandler) HandleDisconnect(namespace, instanceID string, conn *Connection) {
 	logger := log.Log.WithName("asdp-connect")
 	logger.Info("instance disconnected", "namespace", namespace, "instance", instanceID)
-	h.server.UnregisterConnection(namespace, instanceID)
+	h.server.UnregisterConnectionIfMatch(namespace, instanceID, conn)
 }
 
 // GetInstanceKey returns the routing key for a namespace/instance pair.
