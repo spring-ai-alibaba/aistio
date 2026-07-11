@@ -1,4 +1,4 @@
-# Copyright The AgentScope Go Authors
+# Copyright The Aistio Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-project: "AgentScope Go"
-title: "<span style='font-weight: 700; color: #2196f3;'>AgentScope Go</span>"
-author: The AgentScope Go Authors
+project: "Aistio"
+title: "<span style='font-weight: 700; color: #5b5bd6;'>Aistio</span>"
+author: The Aistio Authors
 logo: _static/logo.svg
-copyright: "The AgentScope Go Authors"
+copyright: "The Aistio Authors"
 only_build_toc_files: true
 
 execute:
@@ -37,6 +37,7 @@ sphinx:
   extra_extensions:
     - sphinxcontrib.mermaid
   config:
+    language: zh_CN
     mermaid_version: "11.12.1"
     html_theme: furo
     pygments_style: "friendly"
@@ -50,97 +51,68 @@ sphinx:
       - "_static"
     use_multitoc_numbering: false
     html_js_files:
-      - language.js
       - tabs.js
     html_css_files:
       - custom.css
     html_context:
       docs_top_tabs:
         - id: home
-          label_en: Home
           label_zh: 首页
-          href_en: en/intro
           href_zh: zh/intro
-          prefixes_en:
-            - en/intro
           prefixes_zh:
             - zh/intro
-          sections_en: []
           sections_zh: []
           languages:
-            - en
             - zh
-        - id: docs
-          label_en: Docs
-          label_zh: 文档
-          href_en: en/quickstart/installation
-          href_zh: zh/quickstart/feature-overview
-          prefixes_en:
-            - en/quickstart
-            - en/task
-            - en/faq
+        - id: guide
+          label_zh: 使用指南
+          href_zh: zh/getting-started/installation
           prefixes_zh:
-            - zh/quickstart
-            - zh/task
-            - zh/faq
-          sections_en:
-            - Quick Start
-            - Advanced Topics
-            - FAQ
+            - zh/getting-started
+            - zh/concepts
+            - zh/guides
           sections_zh:
             - 快速开始
-            - 高级主题
-            - 常见问题 FAQ
+            - 核心概念
+            - 智能体管理
           languages:
-            - en
             - zh
-        - id: integration
-          label_en: Integration
-          label_zh: 集成
-          href_en: en/integration/index
-          href_zh: zh/integration/index
-          prefixes_en:
-            - en/integration
+        - id: reference
+          label_zh: 接口参考
+          href_zh: zh/reference/data-plane-contract
           prefixes_zh:
-            - zh/integration
-          sections_en:
-            - Integration
+            - zh/reference
           sections_zh:
-            - 集成
+            - 接口参考
           languages:
-            - en
             - zh
-        - id: blogs
-          label_en: Blogs
-          label_zh: 博客
-          href_en: en/blogs/index
-          href_zh: zh/blogs/index
-          prefixes_en:
-            - en/blogs
+        - id: experimental
+          label_zh: 实验功能
+          href_zh: zh/experimental/teams-and-sandbox
           prefixes_zh:
-            - zh/blogs
-          sections_en:
-            - Blogs
+            - zh/experimental
           sections_zh:
-            - 博客
+            - 实验功能
           languages:
-            - en
+            - zh
+        - id: operations
+          label_zh: 部署与运维
+          href_zh: zh/operations/deployment
+          prefixes_zh:
+            - zh/operations
+          sections_zh:
+            - 部署与运维
+          languages:
             - zh
         - id: community
-          label_en: Community
-          label_zh: 社区
-          href_en: en/community/contributors
-          href_zh: zh/community/contributors
-          prefixes_en:
-            - en/community
+          label_zh: 帮助与社区
+          href_zh: zh/faq/index
           prefixes_zh:
+            - zh/faq
             - zh/community
-          sections_en:
-            - Community
           sections_zh:
-            - 社区
+            - 帮助与社区
           languages:
-            - en
             - zh
     html_sidebars:
       "**":
@@ -152,12 +124,12 @@ sphinx:
     html_theme_options:
       top_of_page_buttons: ["view"]
       sidebar_hide_name: true
-      source_repository: "https://github.com/yuluo-yx/agentscope-go"
+      source_repository: "https://github.com/spring-ai-alibaba/aistio"
       source_branch: "main"
       source_directory: "docs/"
       light_css_variables:
-        color-brand-primary: "#2196f3"
-        color-brand-content: "#0b5cad"
+        color-brand-primary: "#5b5bd6"
+        color-brand-content: "#4545b8"
       dark_css_variables:
-        color-brand-primary: "#64b5f6"
-        color-brand-content: "#64b5f6"
+        color-brand-primary: "#a5a5ff"
+        color-brand-content: "#b8b8ff"

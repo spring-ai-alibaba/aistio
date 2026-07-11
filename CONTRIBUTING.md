@@ -22,7 +22,7 @@ Required tools:
 
 | Tool | Version |
 | --- | --- |
-| Go | `1.26+` |
+| Go | `1.26.5+` |
 | GNU Make | Any recent version |
 | controller-gen | Latest |
 | Helm | `3.x` |

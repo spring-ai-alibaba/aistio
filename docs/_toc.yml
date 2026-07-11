@@ -1,4 +1,4 @@
-# Copyright The AgentScope Go Authors
+# Copyright The Aistio Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,123 +13,57 @@
 # limitations under the License.
 
 format: jb-book
-root: en/intro
+root: zh/intro
 parts:
-  - caption: Quick Start
-    chapters:
-      - file: en/quickstart/installation
-        title: Installation
-      - file: en/quickstart/key-concepts
-        title: Key Concepts
-      - file: en/quickstart/agent
-        title: Build an Agent
-
-  - caption: Advanced Topics
-    chapters:
-      - file: en/task/model
-        title: Model Integration
-      - file: en/task/agent-config
-        title: Agent Configuration
-      - file: en/task/tool
-        title: Tool System
-      - file: en/task/mcp
-        title: Model Context Protocol
-      - file: en/task/hook
-        title: Hook System
-      - file: en/task/loop-engineering
-        title: Loop Engineering
-      - file: en/task/state
-        title: State Management
-      - file: en/task/workspace
-        title: Workspace
-      - file: en/task/message
-        title: Messages
-      - file: en/task/permission
-        title: Permission
-      - file: en/task/examples
-        title: Examples
-
-  - caption: FAQ
-    chapters:
-      - file: en/faq/index
-        title: FAQ
-
-  - caption: Integration
-    chapters:
-      - file: en/integration/index
-        title: Integration
-
-  - caption: Blogs
-    chapters:
-      - file: en/blogs/index
-        title: Blogs
-
-  - caption: Community
-    chapters:
-      - file: en/community/contributors
-        title: Contributors
-      - file: en/community/chat-groups
-        title: Chat Groups
-
-  - caption: 首页
-    chapters:
-      - file: zh/intro
-        title: 首页
-
   - caption: 快速开始
     chapters:
-      - file: zh/quickstart/feature-overview
-        title: 功能总览
-      - file: zh/quickstart/installation
-        title: 安装
-      - file: zh/quickstart/key-concepts
-        title: 核心概念
-      - file: zh/quickstart/agent
-        title: 构建智能体
+      - file: zh/getting-started/installation
+        title: 安装 Aistio
 
-  - caption: 高级主题
+  - caption: 核心概念
     chapters:
-      - file: zh/task/model
-        title: 模型集成
-      - file: zh/task/agent-config
-        title: 智能体配置
-      - file: zh/task/tool
-        title: 工具系统
-      - file: zh/task/mcp
-        title: 模型上下文协议
-      - file: zh/task/hook
-        title: Hook 系统
-      - file: zh/task/loop-engineering
-        title: Loop Engineering
-      - file: zh/task/state
-        title: 状态管理
-      - file: zh/task/workspace
-        title: Sandbox 沙箱
-      - file: zh/task/message
-        title: 消息
-      - file: zh/task/permission
-        title: 权限
-      - file: zh/task/examples
-        title: 示例
+      - file: zh/concepts/architecture
+        title: 架构
+      - file: zh/concepts/key-concepts
+        title: 核心概念
 
-  - caption: 常见问题 FAQ
+  - caption: 智能体管理
+    chapters:
+      - file: zh/guides/agents
+        title: 声明式智能体
+      - file: zh/guides/byo
+        title: 纳管现有工作负载
+      - file: zh/guides/model-and-mcp
+        title: 模型与 MCP 配置
+      - file: zh/guides/sessions
+        title: 会话管理
+
+  - caption: 接口参考
+    chapters:
+      - file: zh/reference/data-plane-contract
+        title: 数据面 HTTP 契约
+      - file: zh/reference/asdp
+        title: ASDP 协议
+      - file: zh/reference/cli
+        title: 命令行工具
+      - file: zh/reference/rest-api
+        title: REST API
+
+  - caption: 实验功能
+    chapters:
+      - file: zh/experimental/teams-and-sandbox
+        title: 团队与沙箱
+
+  - caption: 部署与运维
+    chapters:
+      - file: zh/operations/deployment
+        title: 部署配置
+      - file: zh/operations/operations
+        title: 运维与排障
+
+  - caption: 帮助与社区
     chapters:
       - file: zh/faq/index
-        title: FAQ
-
-  - caption: 集成
-    chapters:
-      - file: zh/integration/index
-        title: 集成
-
-  - caption: 博客
-    chapters:
-      - file: zh/blogs/index
-        title: 博客
-
-  - caption: 社区
-    chapters:
-      - file: zh/community/contributors
-        title: 贡献者
-      - file: zh/community/chat-groups
-        title: 交流群
+        title: 常见问题
+      - file: zh/community/index
+        title: 社区与贡献

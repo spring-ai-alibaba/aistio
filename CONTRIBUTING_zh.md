@@ -18,7 +18,7 @@ English version: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 | 工具 | 版本 |
 | --- | --- |
-| Go | `1.26+` |
+| Go | `1.26.5+` |
 | GNU Make | 近期版本即可 |
 | controller-gen | 最新版本 |
 | Helm | `3.x` |

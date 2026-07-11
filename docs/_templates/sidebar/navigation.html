@@ -1,4 +1,4 @@
-{% set current_lang = "zh" if pagename.startswith("zh/") else "en" %}
+{% set current_lang = "zh" %}
 {% set active_sections = namespace(value=[]) %}
 {% set all_sections = namespace(value=[]) %}
 {% if docs_top_tabs is defined and docs_top_tabs %}
@@ -75,7 +75,7 @@
       });
     }
 
-    const lang = tree.getAttribute('data-page-language') || 'en';
+    const lang = tree.getAttribute('data-page-language') || 'zh';
     if (window.filterSidebarLanguage) {
       window.filterSidebarLanguage(lang, tree);
     }
