@@ -56,62 +56,34 @@ Aistio 不执行以下工作：
 
 ```mermaid
 flowchart TB
-    operator["平台运维人员与自动化系统"]
-    cli["aistioctl / REST 客户端"]
     kubectl["kubectl / GitOps"]
-    remoteMCP["远程 MCP 服务"]
-    providers["模型供应商<br/>由运行时接入"]
-    prometheus["Prometheus<br/>可选"]
-    otlp["OTLP Collector<br/>可选"]
+    clients["aistioctl / REST 客户端"]
+    api["Kubernetes API<br/>Aistio CRD 与 Secret"]
+    control["aistiod<br/>控制器 · REST · Webhook"]
+    resources["Kubernetes 工作负载<br/>ConfigMap · Deployment · Service"]
+    http["HTTP 数据面契约<br/>健康 · 会话 · 命令"]
+    asdp["ASDP gRPC<br/>配置 · ACK/NACK · 状态上报"]
+    managed["托管 Agent 运行时"]
+    byo["BYO Agent 运行时"]
+    external["模型供应商与 MCP 服务"]
+    observability["Prometheus / OTLP<br/>可选"]
+    team["AgentTeam<br/>实验性"]
 
-    operator --> cli
-    operator --> kubectl
-
-    subgraph cluster["Kubernetes 集群"]
-        kapi["Kubernetes API<br/>CRD、Secret 与工作负载状态"]
-
-        subgraph control["Aistio 控制面 — aistiod"]
-            rest["REST API"]
-            webhook["准入 Webhook"]
-            controllers["核心控制器<br/>Agent · Discovery · Session · Model · MCP"]
-            watcher["配置推送监听器"]
-            asdp["ASDP gRPC 服务<br/>配置推送 · ACK/NACK · 状态上报"]
-            team["AgentTeam 控制器<br/>实验性，默认关闭"]
-            telemetry["指标与可选链路追踪"]
-        end
-
-        subgraph dataplane["Agent 数据面"]
-            managed["托管 Agent 工作负载<br/>内置 AgentScope Java 适配器"]
-            byo["BYO Agent 工作负载<br/>HTTP 契约 / 可选 ASDP"]
-        end
-    end
-
-    cli -->|管理请求| rest
-    kubectl -->|资源清单| kapi
-    rest -->|资源增删改查| kapi
-    kapi -->|准入请求| webhook
-    kapi -->|资源事件| controllers
-    controllers -->|协调资源与状态| kapi
-    kapi -->|Deployment · Service · ConfigMap| managed
-    controllers -.->|发现与探测| byo
-
-    kapi -->|Agent · ModelConfig · MCPServer 事件| watcher
-    watcher -->|带版本的配置| asdp
-    asdp <-->|ASDP 双向流| managed
-    asdp <-.->|可选 ASDP 双向流| byo
-    controllers -->|HTTP 探测与会话 API| managed
-    controllers -.->|HTTP 契约| byo
-
-    controllers -->|远程工具发现| remoteMCP
-    managed -->|工具调用| remoteMCP
-    byo -.->|工具调用| remoteMCP
-    managed -.->|模型调用| providers
-    byo -.->|模型调用| providers
-
-    kapi -.->|功能开关控制的资源| team
-    team -.->|团队消息| asdp
-    prometheus -->|抓取| telemetry
-    telemetry -.->|导出 Trace| otlp
+    kubectl --> api
+    clients --> control
+    api --> control
+    control --> resources
+    resources --> managed
+    control --> http
+    http --> managed
+    http --> byo
+    control --> asdp
+    asdp --> managed
+    asdp --> byo
+    managed --> external
+    byo --> external
+    control --> observability
+    control --> team
 ```
 
 Kubernetes API 保存持久化的期望状态与观测状态，Aistio 不需要额外数据库。

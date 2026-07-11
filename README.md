@@ -58,62 +58,34 @@ Aistio does not:
 
 ```mermaid
 flowchart TB
-    operator["Platform operator / automation"]
-    cli["aistioctl / REST client"]
     kubectl["kubectl / GitOps"]
-    remoteMCP["Remote MCP servers"]
-    providers["Model providers<br/>(runtime-specific)"]
-    prometheus["Prometheus<br/>(optional)"]
-    otlp["OTLP collector<br/>(optional)"]
+    clients["aistioctl / REST clients"]
+    api["Kubernetes API<br/>Aistio CRDs and Secrets"]
+    control["aistiod<br/>controllers · REST · webhooks"]
+    resources["Kubernetes workloads<br/>ConfigMap · Deployment · Service"]
+    http["HTTP data-plane contract<br/>health · sessions · commands"]
+    asdp["ASDP gRPC<br/>configuration · ACK/NACK · reports"]
+    managed["Managed Agent runtime"]
+    byo["BYO Agent runtime"]
+    external["Model providers and MCP servers"]
+    observability["Prometheus / OTLP<br/>optional"]
+    team["AgentTeam<br/>experimental"]
 
-    operator --> cli
-    operator --> kubectl
-
-    subgraph cluster["Kubernetes cluster"]
-        kapi["Kubernetes API<br/>CRDs, Secrets, and workload state"]
-
-        subgraph control["Aistio control plane — aistiod"]
-            rest["REST API"]
-            webhook["Admission webhooks"]
-            controllers["Core controllers<br/>Agent · Discovery · Session · Model · MCP"]
-            watcher["Config push watcher"]
-            asdp["ASDP gRPC server<br/>config push · ACK/NACK · reports"]
-            team["AgentTeam controller<br/>experimental, off by default"]
-            telemetry["Metrics and optional tracing"]
-        end
-
-        subgraph dataplane["Agent data plane"]
-            managed["Managed Agent workloads<br/>built-in AgentScope Java adapter"]
-            byo["BYO Agent workloads<br/>HTTP contract / optional ASDP"]
-        end
-    end
-
-    cli -->|management requests| rest
-    kubectl -->|resource manifests| kapi
-    rest -->|CRUD resources| kapi
-    kapi -->|admission review| webhook
-    kapi -->|watch events| controllers
-    controllers -->|reconcile resources and status| kapi
-    kapi -->|Deployment · Service · ConfigMap| managed
-    controllers -.->|discover and probe| byo
-
-    kapi -->|Agent · ModelConfig · MCPServer events| watcher
-    watcher -->|versioned configuration| asdp
-    asdp <-->|ASDP stream| managed
-    asdp <-.->|optional ASDP stream| byo
-    controllers -->|HTTP probe and session API| managed
-    controllers -.->|HTTP contract| byo
-
-    controllers -->|remote tool discovery| remoteMCP
-    managed -->|tool calls| remoteMCP
-    byo -.->|tool calls| remoteMCP
-    managed -.->|model calls| providers
-    byo -.->|model calls| providers
-
-    kapi -.->|feature-gated resources| team
-    team -.->|team messages| asdp
-    prometheus -->|scrape| telemetry
-    telemetry -.->|export traces| otlp
+    kubectl --> api
+    clients --> control
+    api --> control
+    control --> resources
+    resources --> managed
+    control --> http
+    http --> managed
+    http --> byo
+    control --> asdp
+    asdp --> managed
+    asdp --> byo
+    managed --> external
+    byo --> external
+    control --> observability
+    control --> team
 ```
 
 The Kubernetes API is the durable source of desired and observed state; Aistio
