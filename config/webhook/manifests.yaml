@@ -56,26 +56,6 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-agentscope-io-v1alpha1-agentteam
-  failurePolicy: Fail
-  name: vagentteam.agentscope.io
-  rules:
-  - apiGroups:
-    - agentscope.io
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - agentteams
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: webhook-service
-      namespace: system
       path: /validate-agentscope-io-v1alpha1-agentsession
   failurePolicy: Fail
   name: vagentsession.agentscope.io
@@ -96,9 +76,9 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-agentscope-io-v1alpha1-modelconfig
+      path: /validate-agentscope-io-v1alpha1-agentteam
   failurePolicy: Fail
-  name: vmodelconfig.agentscope.io
+  name: vagentteam.agentscope.io
   rules:
   - apiGroups:
     - agentscope.io
@@ -108,7 +88,7 @@ webhooks:
     - CREATE
     - UPDATE
     resources:
-    - modelconfigs
+    - agentteams
   sideEffects: None
 - admissionReviewVersions:
   - v1
@@ -129,4 +109,24 @@ webhooks:
     - UPDATE
     resources:
     - mcpservers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-agentscope-io-v1alpha1-modelconfig
+  failurePolicy: Fail
+  name: vmodelconfig.agentscope.io
+  rules:
+  - apiGroups:
+    - agentscope.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - modelconfigs
   sideEffects: None

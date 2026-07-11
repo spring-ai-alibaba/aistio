@@ -4,7 +4,7 @@ ci:
   skip: [golangci-lint, go-mod-tidy]
 
 default_language_version:
-  golang: 1.26.4
+  golang: 1.26.5
 
 repos:
   # ── General hygiene ───────────────────────────────────────────────

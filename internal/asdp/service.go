@@ -73,7 +73,11 @@ func (s *service) Connect(stream AgentDataPlaneService_ConnectServer) error {
 	}
 	s.server.RegisterConnection(conn)
 	defer func() {
-		s.server.connectHandler.HandleDisconnect(meta.Namespace, meta.InstanceId)
+		// Tear down only if this connection is still the registered one. A
+		// reconnect may have already replaced this instanceID with a newer
+		// Connection; passing our own pointer lets HandleDisconnect skip the
+		// eviction instead of clobbering the fresh connection.
+		s.server.connectHandler.HandleDisconnect(meta.Namespace, meta.InstanceId, conn)
 		cancel()
 	}()
 

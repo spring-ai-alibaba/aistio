@@ -453,6 +453,23 @@ spec:
                   skills:
                     description: SkillsSpec defines skill references.
                     properties:
+                      bindings:
+                        items:
+                          description: SkillBinding defines a skill attached to an
+                            agent with inline or OCI configuration.
+                          properties:
+                            description:
+                              type: string
+                            instructions:
+                              type: string
+                            name:
+                              type: string
+                            ref:
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
                       refs:
                         items:
                           type: string

@@ -1,4 +1,4 @@
-AgentScope Control Plane {{ .Chart.AppVersion }} installed in namespace "{{ .Release.Namespace }}".
+Aistio {{ .Chart.AppVersion }} installed in namespace "{{ .Release.Namespace }}".
 
 Release:     {{ .Release.Name }}
 Image:       {{ .Values.image.repository }}:{{ .Values.image.tag }}

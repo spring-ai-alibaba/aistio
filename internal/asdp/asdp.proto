@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package agentscope.protocol.v1;
 
-option go_package = "github.com/agentscope/agentscope-go/control-plane/internal/asdp";
+option go_package = "github.com/spring-ai-alibaba/aistio/internal/asdp";
 
 // AgentDataPlaneService is the ASDP gRPC service.
 // Single bidirectional stream multiplexing all message types (analogous to xDS ADS).
