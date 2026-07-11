@@ -39,17 +39,20 @@ run: build
 test:
 	go test ./... -coverprofile cover.out
 
-ENVTEST_K8S_VERSION ?= 1.32.x
+ENVTEST_K8S_VERSION ?= 1.36.2
+SETUP_ENVTEST_VERSION ?= v0.24.1
 LOCALBIN ?= $(shell pwd)/bin
-ENVTEST ?= $(shell which setup-envtest 2>/dev/null || echo "$(LOCALBIN)/setup-envtest")
+ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 .PHONY: envtest
-envtest: ## Download setup-envtest if necessary.
-	@test -x $(ENVTEST) || go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+envtest: ## 将固定版本的 setup-envtest 安装到仓库本地 bin 目录。
+	mkdir -p $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@$(SETUP_ENVTEST_VERSION)
 
 .PHONY: test-integration
-test-integration: envtest ## Run envtest integration tests.
-	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./internal/controller/... -v -count=1
+test-integration: envtest ## 运行 envtest 控制循环端到端测试。
+	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		go test -tags=integration -race -count=1 -timeout=5m -v ./internal/controller
 
 fmt:
 	go fmt ./...

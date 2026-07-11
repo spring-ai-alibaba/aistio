@@ -1,3 +1,5 @@
+//go:build integration
+
 package controller_test
 
 import (
@@ -9,9 +11,9 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -24,117 +26,143 @@ import (
 )
 
 var (
-	cfg       *rest.Config
-	k8sClient client.Client
-	testEnv   *envtest.Environment
+	k8sClient     client.Client
+	managerClient client.Client
+	agentProber   = &recordingProber{}
+)
 
-	// envtestReady is true when the envtest environment started successfully.
-	envtestReady bool
-
-	// mgrCancel cancels the background controller manager started in TestMain.
-	mgrCancel context.CancelFunc
+const (
+	testTimeout                    = 30 * time.Second
+	managerGracefulShutdownTimeout = 10 * time.Second
+	managerStopTimeout             = 15 * time.Second
+	cleanupTimeout                 = 5 * time.Second
 )
 
 func TestMain(m *testing.M) {
+	os.Exit(runSuite(m))
+}
+
+// runSuite 启动真实 API Server、etcd 和控制器 manager。显式运行 integration
+// suite 时缺少二进制或 CRD 必须失败，不能退化成全部 Skip 的假绿结果。
+func runSuite(m *testing.M) (exitCode int) {
 	logf.SetLogger(zap.New(zap.WriteTo(os.Stderr)))
 
-	testEnv = &envtest.Environment{
+	testEnv := &envtest.Environment{
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "..", "config", "crd"),
 		},
 		ErrorIfCRDPathMissing: true,
 	}
 
-	var err error
-	cfg, err = testEnv.Start()
+	cfg, err := testEnv.Start()
 	if err != nil {
-		// envtest binaries not installed -- skip envtest tests but let unit tests run.
-		fmt.Fprintf(os.Stderr, "envtest: skipping integration tests: %v\n", err)
-	} else {
-		if err := v1alpha1.AddToScheme(scheme.Scheme); err != nil {
-			panic("failed to add v1alpha1 to scheme: " + err.Error())
-		}
-
-		k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-		if err != nil {
-			panic("failed to create k8s client: " + err.Error())
-		}
-		envtestReady = true
-
-		// Start a controller manager with reconcilers so envtest tests
-		// exercise real reconciliation logic, not just CRD CRUD.
-		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-			Scheme: scheme.Scheme,
-			// Disable metrics and health listeners to avoid port conflicts in tests.
-			Metrics:                metricsserver.Options{BindAddress: "0"},
-			HealthProbeBindAddress: "0",
-		})
-		if err != nil {
-			panic("failed to create manager: " + err.Error())
-		}
-
-		// Register AgentTeamReconciler (legacy mode -- nil Lifecycle).
-		// The legacy path handles Pending->Running transitions without
-		// external dependencies (no TaskStore, MessageRouter, etc.).
-		if err := (&controller.AgentTeamReconciler{
-			Client:   mgr.GetClient(),
-			Scheme:   mgr.GetScheme(),
-			Recorder: mgr.GetEventRecorderFor("agentteam-controller"),
-			// Lifecycle is intentionally nil: the reconciler has a
-			// legacyHandlePending fallback that works without it.
-		}).SetupWithManager(mgr); err != nil {
-			panic("failed to setup AgentTeamReconciler: " + err.Error())
-		}
-
-		// NOTE: AgentReconciler is NOT registered here because it requires
-		// adapter.Get(runtime) to succeed, which needs a registered
-		// DataPlaneAdapter. The adapter registry is populated via init()
-		// in the adapter package, but the reconciler also needs a non-nil
-		// Prober and Recorder to avoid panics during status updates.
-		// Adding it would require importing the adapter package and
-		// providing mock/stub infrastructure that is out of scope for
-		// this envtest suite.
-
-		var mgrCtx context.Context
-		mgrCtx, mgrCancel = context.WithCancel(context.Background())
-		go func() {
-			if err := mgr.Start(mgrCtx); err != nil {
-				panic("manager failed: " + err.Error())
-			}
-		}()
+		fmt.Fprintf(os.Stderr, "envtest: failed to start control plane: %v\n", err)
+		return 1
 	}
-
-	code := m.Run()
-
-	if envtestReady {
-		if mgrCancel != nil {
-			mgrCancel()
-		}
+	defer func() {
 		if err := testEnv.Stop(); err != nil {
-			fmt.Fprintf(os.Stderr, "envtest: failed to stop: %v\n", err)
+			fmt.Fprintf(os.Stderr, "envtest: failed to stop control plane: %v\n", err)
+			exitCode = 1
 		}
+	}()
+
+	if err := v1alpha1.AddToScheme(scheme.Scheme); err != nil {
+		fmt.Fprintf(os.Stderr, "envtest: failed to add Aistio APIs to scheme: %v\n", err)
+		return 1
 	}
 
-	os.Exit(code)
+	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "envtest: failed to create API client: %v\n", err)
+		return 1
+	}
+
+	// manager 使用真实缓存和 watch，测试覆盖 API 持久化后的异步协调，而不是
+	// 直接调用 Reconcile。关闭监听端口可避免并行 CI 端口冲突。
+	gracefulShutdownTimeout := managerGracefulShutdownTimeout
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme:                  scheme.Scheme,
+		Metrics:                 metricsserver.Options{BindAddress: "0"},
+		HealthProbeBindAddress:  "0",
+		GracefulShutdownTimeout: &gracefulShutdownTimeout,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "envtest: failed to create manager: %v\n", err)
+		return 1
+	}
+	managerClient = mgr.GetClient()
+
+	// AgentTeam 使用无外部依赖的 legacy 生命周期路径。
+	if err := (&controller.AgentTeamReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("agentteam-controller"),
+	}).SetupWithManager(mgr); err != nil {
+		fmt.Fprintf(os.Stderr, "envtest: failed to register AgentTeam controller: %v\n", err)
+		return 1
+	}
+
+	// agentscope-java adapter 由 controller 依赖包的 init 自动注册。线程安全的
+	// recordingProber 用于验证 Ready Pod 到数据面探测状态的闭环；Recorder 与生产装配一致。
+	if err := (&controller.AgentReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Prober:   agentProber,
+		Recorder: mgr.GetEventRecorderFor("agent-controller"),
+	}).SetupWithManager(mgr); err != nil {
+		fmt.Fprintf(os.Stderr, "envtest: failed to register Agent controller: %v\n", err)
+		return 1
+	}
+
+	mgrCtx, mgrCancel := context.WithCancel(context.Background())
+	mgrDone := make(chan struct{})
+	var mgrRunErr error
+	go func() {
+		defer close(mgrDone)
+		mgrRunErr = mgr.Start(mgrCtx)
+	}()
+	defer func() {
+		mgrCancel()
+		stopTimer := time.NewTimer(managerStopTimeout)
+		defer stopTimer.Stop()
+		select {
+		case <-mgrDone:
+			if mgrRunErr != nil {
+				fmt.Fprintf(os.Stderr, "envtest: manager failed: %v\n", mgrRunErr)
+				exitCode = 1
+			}
+		case <-stopTimer.C:
+			fmt.Fprintln(os.Stderr, "envtest: timed out stopping manager")
+			exitCode = 1
+		}
+	}()
+
+	startupTimer := time.NewTimer(testTimeout)
+	defer startupTimer.Stop()
+	select {
+	case <-mgr.Elected():
+		// 未启用 leader election 时，该信号在缓存同步且 controller 启动后关闭。
+	case <-mgrDone:
+		fmt.Fprintf(os.Stderr, "envtest: manager stopped during startup: %v\n", mgrRunErr)
+		return 1
+	case <-startupTimer.C:
+		fmt.Fprintln(os.Stderr, "envtest: timed out waiting for manager startup")
+		return 1
+	}
+
+	return m.Run()
 }
 
 // testContext returns a context with a timeout suitable for test assertions.
-func testContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), testTimeout)
-}
-
-// skipIfNoEnvtest skips the test if envtest binaries are not available.
-func skipIfNoEnvtest(t *testing.T) {
+func testContext(t *testing.T) (context.Context, context.CancelFunc) {
 	t.Helper()
-	if !envtestReady {
-		t.Skip("envtest binaries not installed; run 'make envtest' and set KUBEBUILDER_ASSETS")
-	}
+	return context.WithTimeout(t.Context(), testTimeout)
 }
 
 // createNamespace creates a unique namespace for test isolation and returns its name.
 func createNamespace(t *testing.T, prefix string) string {
 	t.Helper()
-	ctx, cancel := testContext()
+	ctx, cancel := testContext(t)
 	defer cancel()
 
 	name := fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano())
@@ -145,7 +173,11 @@ func createNamespace(t *testing.T, prefix string) string {
 		t.Fatalf("failed to create namespace %s: %v", name, err)
 	}
 	t.Cleanup(func() {
-		_ = k8sClient.Delete(context.Background(), ns)
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(t.Context()), cleanupTimeout)
+		defer cancel()
+		if err := k8sClient.Delete(ctx, ns); err != nil && !apierrors.IsNotFound(err) {
+			t.Errorf("failed to delete namespace %s: %v", name, err)
+		}
 	})
 	return name
 }
