@@ -1,4 +1,4 @@
-# Copyright The AgentScope Go Authors
+# Copyright The Aistio Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +13,10 @@
 # limitations under the License.
 
 [project]
-name = "agentscope-go-docs"
-version = "0.1.0"
-description = "Documentation for AgentScope Go."
-readme = "./en/intro.md"
+name = "aistio-docs"
+version = "0.2.0"
+description = "Aistio 中文文档。"
+readme = "./zh/intro.md"
 requires-python = ">=3.10"
 dependencies = []
 

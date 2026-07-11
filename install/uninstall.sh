@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Uninstall the AgentScope Control Plane.
+# Uninstall the Aistio control plane.
 #
 # Usage:
 #   ./install/uninstall.sh [-n namespace] [-r release] [--purge-crds]
@@ -12,8 +12,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CRD_DIR="$(cd "${SCRIPT_DIR}/../config/crd" && pwd)"
 
-NAMESPACE="agentscope-system"
-RELEASE="agentscope"
+NAMESPACE="aistio-system"
+RELEASE="aistio"
 PURGE_CRDS="false"
 
 while [[ $# -gt 0 ]]; do

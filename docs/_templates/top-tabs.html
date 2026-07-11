@@ -1,8 +1,8 @@
 {% if docs_top_tabs is defined and docs_top_tabs %}
-  {% set current_lang = "zh" if pagename.startswith("zh/") else "en" %}
+  {% set current_lang = "zh" %}
   <nav
     class="docs-top-tabs"
-    aria-label="Documentation sections"
+    aria-label="文档栏目"
     data-current-page="{{ pagename }}"
     data-current-lang="{{ current_lang }}"
   >

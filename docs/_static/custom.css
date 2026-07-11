@@ -1,5 +1,5 @@
 /*
- * Copyright The AgentScope Go Authors
+ * Copyright The Aistio Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,86 +14,7 @@
  * limitations under the License.
  */
 
-.language-switch {
-  flex: 0 0 auto;
-}
-
-.language-selector {
-  position: relative;
-  font-size: var(--font-size--small);
-}
-
-.language-button {
-  min-width: 5.25rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--color-background-secondary);
-  border: 1px solid var(--color-background-border);
-  border-radius: 0.55rem;
-  cursor: pointer;
-  display: flex;
-  gap: 0.5rem;
-  justify-content: space-between;
-  align-items: center;
-  color: var(--color-foreground-primary);
-  font-family: var(--font-stack);
-  font-size: inherit;
-}
-
-.language-button:hover {
-  border-color: var(--color-brand-primary);
-}
-
-.language-menu {
-  display: none;
-  position: absolute;
-  top: calc(100% + 0.25rem);
-  right: 0;
-  min-width: 8rem;
-  background: var(--color-background-primary);
-  border: 1px solid var(--color-background-border);
-  border-radius: 0.375rem;
-  z-index: 80;
-  overflow: hidden;
-  box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.08);
-}
-
-.language-option {
-  display: block;
-  padding: 0.5rem 0.75rem;
-  text-decoration: none;
-  color: var(--color-foreground-primary);
-  border-bottom: 1px solid var(--color-background-border);
-}
-
-.language-option:last-child {
-  border-bottom: none;
-}
-
-.language-option:hover,
-.language-option.active {
-  background: var(--color-brand-primary);
-  color: var(--color-background-primary);
-  text-decoration: none;
-}
-
-.language-button::after {
-  content: "";
-  width: 0;
-  height: 0;
-  border-left: 0.25rem solid transparent;
-  border-right: 0.25rem solid transparent;
-  border-top: 0.25rem solid currentColor;
-}
-
-.language-selector.open .language-menu {
-  display: block;
-}
-
-.sidebar-language-hidden {
-  display: none !important;
-}
-
-/* Combined logo in sidebar brand */
+/* 侧边栏品牌标志。 */
 .combined-logo {
   display: flex;
   align-items: center;

@@ -1,5 +1,5 @@
 /*
- * Copyright The AgentScope Go Authors
+ * Copyright The Aistio Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@
       return container.dataset.currentLang;
     }
 
-    return window.location.pathname.includes("/zh/") ? "zh" : "en";
+    return "zh";
   }
 
   function parseList(value) {
@@ -212,7 +212,7 @@
     });
   }
 
-  window.AgentScopeDocsTabs = {
+  window.AistioDocsTabs = {
     applyNavigation,
   };
 
