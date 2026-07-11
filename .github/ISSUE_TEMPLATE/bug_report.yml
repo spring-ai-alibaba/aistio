@@ -57,7 +57,7 @@ body:
     attributes:
       label: Go version
       description: Include the output of `go version` when relevant.
-      placeholder: e.g. go version go1.26.0 darwin/arm64
+      placeholder: e.g. go version go1.26.5 darwin/arm64
     validations:
       required: true
   - type: input

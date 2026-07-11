@@ -1,83 +1,114 @@
 # Aistio
 
-**Istio is for microservices. Aistio is for AI agents.**
+Aistio 是面向 AI Agent 工作负载的 Kubernetes 原生控制平面。它通过自定义资源（CRD）管理 Agent、模型配置、MCP 服务、会话和实验性团队协作，并通过 HTTP 数据面契约与 ASDP gRPC 协议连接 Agent 运行时。
 
-Aistio is a Kubernetes-native control plane that brings the service-mesh philosophy to AI agent workloads. Just as Istio gives platform teams a uniform way to manage traffic, security, and observability for microservices — without changing application code — Aistio does the same for AI agents: lifecycle management, session tracking, model routing, tool governance, multi-agent collaboration, and observability, all declared as Kubernetes CRDs.
+当前版本为 `0.2.0`，API 版本为 `agentscope.io/v1alpha1`。项目仍处于技术预览阶段，不应直接视为生产级 Agent Service Mesh。
 
-## Why Aistio
+## 项目边界
 
-Running a handful of agents in a notebook is easy. Running dozens in production is not:
+Aistio 负责控制面能力：
 
-| Challenge | Without Aistio | With Aistio |
+- 根据 `Agent` 资源创建或纳管 Kubernetes 工作负载。
+- 记录模型和 MCP 服务配置。
+- 探测数据面健康状态并同步会话摘要。
+- 通过 ASDP 推送配置并接收状态上报。
+- 暴露 Kubernetes API、REST API 和 `aistioctl` 命令行入口。
+
+Aistio 不执行以下工作：
+
+- 不直接调用大语言模型，也不是模型推理网关。
+- 不执行 Agent 的推理循环或工具调用。
+- 不提供透明 sidecar 流量代理。
+- 不替代 Agent 运行时。数据面仍需实现 HTTP 契约或 ASDP 协议。
+
+## 能力状态
+
+| 能力 | 当前状态 | 说明 |
 | --- | --- | --- |
-| Deploying & scaling agents | Hand-rolled Deployments, one-off scripts | `kubectl apply` an `Agent` CR, autoscaling built in |
-| Model credentials | Scattered env vars, easy to leak | `ModelConfig` CR + K8s Secrets, rotated centrally |
-| Tool access control | Every agent wires its own MCP clients | `MCPServer` CR, tool allow-lists per agent |
-| Multi-agent collaboration | Custom orchestration code per scenario | `AgentTeam` CR with lead/member roles, task routing, fault recovery |
-| Session & context management | App-level bookkeeping | `AgentSession` CR, context-pressure monitoring, auto-compression |
-| Observability | printf debugging | Prometheus metrics, OpenTelemetry tracing, Grafana dashboards |
+| 声明式 Agent | 可用范围受限 | 控制面可创建 ConfigMap、Deployment 和 Service；内置适配器仅支持 `agentscope-java` |
+| BYO 工作负载 | 已实现 | 可通过标签或 REST API 纳管现有 Deployment，并同步副本和健康状态 |
+| 固定副本调整 | 已实现 | 修改 `spec.declarative.replicas` 或 BYO image 的 `spec.byo.replicas` 后更新 Deployment；尚未实现 HPA 自动扩缩容 |
+| 数据面 HTTP 契约 | 已实现 | 支持健康、元数据、会话观测及手动压缩/终止命令 |
+| ModelConfig | 部分实现 | 可校验 Secret 引用并下发配置；本项目不代理模型请求 |
+| Remote MCP | 部分实现 | 支持 Streamable HTTP POST，并可解析 JSON 或 SSE 响应；传统 SSE transport 和 Stdio 工具发现尚未实现 |
+| ASDP | 技术预览 | 协议、连接、配置 ACK/NACK 和会话上报已有实现；部署集成仍需完善 |
+| AgentTeam | 实验性 | 任务、消息和状态机已有实现，真实多 Agent 执行闭环尚未完成 |
+| Sandbox | 未实现 | 默认不协调 `SandboxClaim`；启用实验控制器后也只会停留在 `Pending` |
 
-## Architecture
+## 架构
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                        Kubernetes Cluster                        │
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │                    Aistio Control Plane                     │ │
-│  │                                                             │ │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐ │ │
-│  │  │ Agent    │  │ Session  │  │ Team     │  │ MCP / Model│ │ │
-│  │  │Controller│  │Controller│  │Controller│  │ Controller │ │ │
-│  │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └─────┬──────┘ │ │
-│  │       │              │             │              │        │ │
-│  │  ┌────┴──────────────┴─────────────┴──────────────┴─────┐  │ │
-│  │  │            ASDP (Agent Service Discovery Protocol)   │  │ │
-│  │  │          gRPC bi-directional config push/status      │  │ │
-│  │  └────┬──────────────┬─────────────┬──────────────┬─────┘  │ │
-│  │       │              │             │              │        │ │
-│  └───────┼──────────────┼─────────────┼──────────────┼────────┘ │
-│          │              │             │              │          │
-│  ┌───────▼──────┐ ┌─────▼─────┐ ┌─────▼─────┐ ┌─────▼──────┐  │
-│  │  Agent Pod   │ │ Agent Pod │ │ Agent Pod │ │  Agent Pod │  │
-│  │  (data plane)│ │           │ │           │ │            │  │
-│  │  ┌─────────┐ │ │           │ │           │ │            │  │
-│  │  │Connector│ │ │   ...     │ │   ...     │ │    ...     │  │
-│  │  │ (ASDP)  │ │ │           │ │           │ │            │  │
-│  │  └─────────┘ │ │           │ │           │ │            │  │
-│  └──────────────┘ └───────────┘ └───────────┘ └────────────┘  │
-└──────────────────────────────────────────────────────────────────┘
+```text
+kubectl / aistioctl / REST API
+                │
+                ▼
+      agentscope.io/v1alpha1 CRD
+                │
+                ▼
+             aistiod
+  ┌─────────────┼────────────────────┐
+  │             │                    │
+  ▼             ▼                    ▼
+Kubernetes      HTTP 数据面契约       ASDP gRPC
+资源协调        健康与会话探测         配置与状态
+  │             │                    │
+  └─────────────┴──────────┬─────────┘
+                           ▼
+                     Agent 数据面 Pod
 ```
 
-**Control plane** (`aistiod`) watches CRDs, reconciles agent deployments, manages sessions, coordinates teams, and pushes configuration to data planes via ASDP.
+控制面状态保存在 Kubernetes API 中。Agent 数据面负责模型调用、工具执行和业务逻辑。
 
-**Data plane** is your agent application. Embed the [Connector](connector/) library (or implement the ASDP gRPC contract) to receive config pushes and report status — no vendor lock-in on the agent framework.
+## 自定义资源
 
-**CRDs at a glance:**
-
-| CRD | Purpose |
+| 资源 | 用途 |
 | --- | --- |
-| `Agent` | Declare an agent: image, model, tools, replicas, sandbox |
-| `AgentSession` | Track a conversation session: messages, tokens, context pressure |
-| `AgentTeam` | Orchestrate multi-agent collaboration with lead/member roles |
-| `MCPServer` | Register an MCP tool server (remote HTTP or stdio) |
-| `ModelConfig` | Define model provider + credentials (DashScope, OpenAI, Anthropic, …) |
+| `Agent` | 声明或纳管 Agent 工作负载 |
+| `ModelConfig` | 保存模型提供商、模型名称和 Secret 引用 |
+| `MCPServer` | 注册 Remote 或 Stdio MCP 服务 |
+| `AgentSession` | 记录会话状态、Token 用量和控制命令 |
+| `AgentTeam` | 定义实验性多 Agent 团队 |
+| `TeamTask` | 保存团队任务 |
+| `TeamMessage` | 保存团队消息投递记录 |
+| `SandboxClaim` | 描述实验性沙箱申请；当前尚未完成供应 |
 
-## Quick Start
+## 环境要求
 
-### Prerequisites
-
-- Kubernetes cluster (1.28+)
-- Helm 3.x
+- Go 1.26.5 或更高版本
+- Kubernetes 1.28 或更高版本
+- Helm 3
 - kubectl
 
-### Install via Helm
+## 安装控制面
+
+使用 Helm 安装：
 
 ```bash
-helm install aistio helm/aistio -n aistio-system --create-namespace
+helm upgrade --install aistio ./helm/aistio \
+  --namespace aistio-system \
+  --create-namespace
 ```
 
-### Define a model
+检查控制面：
+
+```bash
+kubectl -n aistio-system rollout status deployment/aistio-controller
+kubectl get crds | grep agentscope.io
+kubectl -n aistio-system port-forward service/aistio-controller 8080:8080
+curl http://127.0.0.1:8080/api/v1/version
+```
+
+当前 Chart 的 ASDP、Team 和 Sandbox 集成仍处于技术预览阶段。使用这些能力前，请先阅读[部署与配置](docs/zh/operations/deployment.md)和[实验性能力](docs/zh/experimental/teams-and-sandbox.md)。
+
+## 创建 Agent
+
+先创建模型凭据：
+
+```bash
+kubectl create secret generic dashscope-credentials \
+  --from-literal=api-key='<your-api-key>'
+```
+
+创建模型配置：
 
 ```yaml
 apiVersion: agentscope.io/v1alpha1
@@ -87,24 +118,11 @@ metadata:
 spec:
   provider: DashScope
   model: qwen-max
-  apiKeySecret: dashscope-credentials   # a K8s Secret with key "api-key"
+  apiKeySecret: dashscope-credentials
+  apiKeySecretKey: api-key
 ```
 
-### Register an MCP tool server
-
-```yaml
-apiVersion: agentscope.io/v1alpha1
-kind: MCPServer
-metadata:
-  name: knowledge-base
-spec:
-  type: Remote
-  remote:
-    url: https://kb.internal/mcp
-    timeout: "30s"
-```
-
-### Deploy an agent
+创建声明式 Agent：
 
 ```yaml
 apiVersion: agentscope.io/v1alpha1
@@ -116,91 +134,64 @@ spec:
   runtime: agentscope-java
   declarative:
     agentConfig:
-      systemMessage: "You are a customer support assistant."
+      systemMessage: "你是一个客户支持助手。"
       modelConfigRef: qwen-max
       maxTurns: 50
-    tools:
-      - type: McpServer
-        mcpServer:
-          name: knowledge-base
-          toolNames: ["search_docs", "get_faq"]
-    replicas: 3
+    replicas: 1
 ```
 
+应用资源：
+
 ```bash
-kubectl apply -f model.yaml -f mcp.yaml -f agent.yaml
+kubectl apply -f model.yaml
+kubectl apply -f agent.yaml
 kubectl get agents
-# NAME               TYPE          RUNTIME           READY   REPLICAS   AGE
-# customer-support   Declarative   agentscope-java   True    3          30s
 ```
 
-### Assemble a team
+## 纳管现有工作负载
 
-```yaml
-apiVersion: agentscope.io/v1alpha1
-kind: AgentTeam
-metadata:
-  name: code-review-team
-spec:
-  objective: "Review PR #42 for security, performance, and test coverage"
-  lead:
-    agentRef:
-      name: senior-reviewer
-    prompt: "Coordinate the review and synthesize findings."
-  members:
-    - name: security
-      agentRef:
-        name: security-agent
-      prompt: "Focus on auth, injection, and data exposure."
-    - name: performance
-      agentRef:
-        name: perf-agent
-      prompt: "Focus on N+1 queries, memory leaks, and hot paths."
-  recovery:
-    reschedulePolicy: Auto
-    maxRestarts: 3
-  lifecycle:
-    maxDuration: "2h"
-```
+为现有 Deployment 添加标签：
 
 ```bash
-kubectl apply -f team.yaml
-kubectl get agentteams
-# NAME               PHASE     LEAD              AGE
-# code-review-team   Running   senior-reviewer   10s
+kubectl label deployment my-agent agentscope.io/managed=true
 ```
 
-## Features
+控制面会创建对应的 BYO `Agent` 资源。数据面至少需要实现：
 
-**Agent Lifecycle** — Declarative (control plane creates Deployments) or BYO (adopt existing workloads). Replica scaling, rolling updates, health probing.
+- `GET /agentscope/info`
+- `GET /agentscope/health`
 
-**Session Management** — Per-session state tracking, token usage metering, context-pressure monitoring with automatic compression when the context window fills up.
+完整契约见[数据面 HTTP 契约](docs/zh/reference/data-plane-contract.md)。
 
-**Multi-Agent Teams** — Lead/member topology, dynamic membership, task claim strategies (self-claim / lead-assign), fault recovery with configurable restart policies.
+## 文档
 
-**Model Governance** — Centralized model provider configuration. Credentials stay in K8s Secrets, never in agent code. Supports DashScope, OpenAI, Anthropic, Gemini, Ollama, and custom providers.
+- [Aistio 文档首页](docs/zh/intro.md)
+- [安装指南](docs/zh/getting-started/installation.md)
+- [架构](docs/zh/concepts/architecture.md)
+- [Agent 与 BYO](docs/zh/guides/agents.md)
+- [模型与 MCP](docs/zh/guides/model-and-mcp.md)
+- [ASDP 协议](docs/zh/reference/asdp.md)
+- [CLI 参考](docs/zh/reference/cli.md)
+- [REST API 参考](docs/zh/reference/rest-api.md)
+- [部署与运维](docs/zh/operations/deployment.md)
 
-**MCP Tool Registry** — Register MCP servers as cluster resources. Bind tools to agents with allow-lists and approval gates. Supports remote HTTP (Streamable HTTP / SSE) and stdio transports.
-
-**ASDP Data Plane** — Bi-directional gRPC protocol for config push and status reporting. Framework-agnostic: works with any agent runtime that embeds the connector.
-
-**Observability** — Built-in Prometheus metrics (`agentscope_*`), OpenTelemetry tracing, Grafana dashboard, and PrometheusRule alerts.
-
-**Sandbox Isolation** — Optional per-agent sandbox with network policies, idle timeouts, and configurable shutdown behavior.
-
-## Development
+## 本地开发
 
 ```bash
-make build          # build aistiod
-make test           # run unit tests
-make test-integration  # run envtest integration tests
-make manifests      # regenerate CRDs and RBAC
-make helm-lint      # lint the Helm chart
-make docker-build   # build multi-arch image
+make build
+make vet
+make test
+make helm-lint
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
+envtest 集成测试需要额外的 Kubernetes 测试二进制：
 
-## License
+```bash
+make test-integration
+```
 
-[Apache License 2.0](LICENSE)
+贡献约定见 [CONTRIBUTING_zh.md](CONTRIBUTING_zh.md)。
+
+## 许可证
+
+Aistio 使用 [Apache License 2.0](LICENSE)。
