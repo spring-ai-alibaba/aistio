@@ -38,6 +38,26 @@ jobs:
             exit 1;
           }
 
+  integration:
+    name: Envtest Control-loop E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Cache envtest assets
+        uses: actions/cache@v6
+        with:
+          path: bin/k8s
+          key: envtest-${{ runner.os }}-${{ runner.arch }}-1.36.2
+
+      - name: Run envtest E2E
+        run: make test-integration
+
   helm:
     name: Helm Lint & Template
     runs-on: ubuntu-latest

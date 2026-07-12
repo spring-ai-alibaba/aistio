@@ -1,36 +1,34 @@
+//go:build integration
+
 package controller_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1alpha1 "github.com/spring-ai-alibaba/aistio/api/v1alpha1"
 )
 
-const testTimeout = 10 * time.Second
-
-// waitFor polls condition every 100ms until it returns true or the timeout expires.
+// waitFor 每 100ms 检查一次条件，直到满足或超过指定时间。
 func waitFor(t *testing.T, timeout time.Duration, condition func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if condition() {
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
+	if err := wait.PollUntilContextTimeout(t.Context(), 100*time.Millisecond, timeout, true, func(context.Context) (bool, error) {
+		return condition(), nil
+	}); err != nil {
+		t.Fatalf("等待条件超时：%v", err)
 	}
-	t.Fatal("timed out waiting for condition")
 }
 
 func TestAgentTeamCreation(t *testing.T) {
-	skipIfNoEnvtest(t)
 	ns := createNamespace(t, "team-create")
-	ctx, cancel := testContext()
+	ctx, cancel := testContext(t)
 	defer cancel()
 
 	team := &v1alpha1.AgentTeam{
@@ -86,7 +84,6 @@ func TestAgentTeamCreation(t *testing.T) {
 }
 
 func TestAgentTeamReconcileSetsStatus(t *testing.T) {
-	skipIfNoEnvtest(t)
 	ns := createNamespace(t, "team-status")
 
 	team := &v1alpha1.AgentTeam{
@@ -108,7 +105,7 @@ func TestAgentTeamReconcileSetsStatus(t *testing.T) {
 		},
 	}
 
-	ctx, cancel := testContext()
+	ctx, cancel := testContext(t)
 	defer cancel()
 
 	if err := k8sClient.Create(ctx, team); err != nil {
@@ -181,7 +178,6 @@ func TestAgentTeamReconcileSetsStatus(t *testing.T) {
 }
 
 func TestAgentTeamFinalizerAdded(t *testing.T) {
-	skipIfNoEnvtest(t)
 	ns := createNamespace(t, "team-finalizer")
 
 	team := &v1alpha1.AgentTeam{
@@ -197,7 +193,7 @@ func TestAgentTeamFinalizerAdded(t *testing.T) {
 		},
 	}
 
-	ctx, cancel := testContext()
+	ctx, cancel := testContext(t)
 	defer cancel()
 
 	if err := k8sClient.Create(ctx, team); err != nil {
@@ -222,9 +218,8 @@ func TestAgentTeamFinalizerAdded(t *testing.T) {
 }
 
 func TestAgentTeamDeletion(t *testing.T) {
-	skipIfNoEnvtest(t)
 	ns := createNamespace(t, "team-delete")
-	ctx, cancel := testContext()
+	ctx, cancel := testContext(t)
 	defer cancel()
 
 	team := &v1alpha1.AgentTeam{
@@ -326,9 +321,8 @@ func TestAgentTeamDeletion(t *testing.T) {
 }
 
 func TestTeamTaskOCC(t *testing.T) {
-	skipIfNoEnvtest(t)
 	ns := createNamespace(t, "task-occ")
-	ctx, cancel := testContext()
+	ctx, cancel := testContext(t)
 	defer cancel()
 
 	task := &v1alpha1.TeamTask{
@@ -389,9 +383,8 @@ func TestTeamTaskOCC(t *testing.T) {
 }
 
 func TestTeamMessageLifecycle(t *testing.T) {
-	skipIfNoEnvtest(t)
 	ns := createNamespace(t, "msg-lifecycle")
-	ctx, cancel := testContext()
+	ctx, cancel := testContext(t)
 	defer cancel()
 
 	msg := &v1alpha1.TeamMessage{
